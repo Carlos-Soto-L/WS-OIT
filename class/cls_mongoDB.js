@@ -1,7 +1,22 @@
 const Sensor_data = require("../model/mdl_Sensor_data");
 const Utils = require("./cls_utils");
 const Telegram = require("./cls_envioTelegram");
+const crypto = require('crypto');
 
+
+// Definir una clave secreta para encriptar y desencriptar
+const ENCRYPTION_KEY = 'utng2023utng2023utng2023utng2023'; // Debe ser de 32 bytes
+const IV_LENGTH = 16; // Para AES, este es siempre 16
+
+function encrypt(text) {
+    let iv = crypto.randomBytes(IV_LENGTH);
+    let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+    let encrypted = cipher.update(text);
+    
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
 
 class MongoDB {
     static async insertarRegistro(JSONString) {
@@ -40,9 +55,11 @@ class MongoDB {
                 await MongoDB.updateField({ iActivo: 1 }, { iValorSensorDH11Tem: objeto.temp, iValorSensorDH11Hum: objeto.hum });
             } else if (objeto.tipo === "sensorGolpe") {
                 await MongoDB.updateField({ iActivo: 1 }, { iValorSensorGolpe: 1 });
-                setInterval(await Telegram.enviarMensaje(), 20000);
+                await Telegram.enviarMensaje();
             } else if (objeto.tipo === "sensorGPS") {
-                await MongoDB.updateField({ iActivo: 1 }, { sLontitud: objeto.lon, sLatitud: objeto.lat });
+                let encryptedLon = encrypt(objeto.lon.toString());
+                let encryptedLat = encrypt(objeto.lat.toString());
+                await MongoDB.updateField({ iActivo: 1 }, { sLontitud: encryptedLon, sLatitud: encryptedLat });
             } else if (objeto.tipo === "sensorIman") {
                 await MongoDB.updateField({ iActivo: 1 }, { iValorSensorIman: 1 });
             }
